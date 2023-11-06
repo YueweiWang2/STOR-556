@@ -1,0 +1,111 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+Q4
+```{r}
+library(fpp3)
+data("prices")
+par(mfrow=c(1,2))
+wheat=ts(data=prices$wheat, start=1800, end=1996)
+plot.ts(wheat)
+
+```
+
+```{r}
+acf(wheat, lag.max = 30)
+```
+The correlogram has a decreasing trend. I'll choose lag=1, 5,10,20, 30 for scatterplot below
+h=1
+```{r}
+plot(y=wheat[2:197], x=wheat[1:196])
+```
+
+h=5
+```{r}
+plot(y=wheat[6:197], x=wheat[1:192]) 
+```
+h=10
+```{r}
+plot(y=wheat[11:197], x=wheat[1:187])
+```
+
+h=20
+```{r}
+plot(y=wheat[21:197], x=wheat[1:177]) 
+```
+
+h=30
+```{r}
+plot(y=wheat[31:197], x=wheat[1:167])
+```
+
+The correlation deceasing as h increases.
+```{r}
+
+library(fpp3)
+library(dplyr)
+
+data("bank_calls")
+my_bank = bank_calls
+hours <- format(my_bank$DateTime,'%H')
+my_bank$DateTime[hours=='21'] <- my_bank$DateTime[hours=='21'] -60
+hourly.info <- format(my_bank$DateTime, format = '%Y-%m-%d %H:00:00')
+my_bank['hourly'] <- hourly.info
+my_bank<- my_bank%>%
+  group_by(hourly) %>%
+  summarise(total_calls = sum(Calls))
+my_bank$hourly <- as.POSIXct(my_bank$hourly)
+last.day <- as.POSIXct('2003-04-01 23:00:00')
+df<- my_bank %>% dplyr::filter(hourly < last.day)
+plot.ts(ts(df$total_calls))
+
+```
+
+```{r}
+
+acf(df$total_calls, lag.max = 50)
+
+```
+The correlation has a very obvious periodical trend
+```{r}
+plot(y=df$total_calls[6:350], x=df$total_calls[1:345])
+```
+```{r}
+plot(y=df$total_calls[11:350], x=df$total_calls[1:340])
+
+```
+```{r}
+plot(y=df$total_calls[21:350], x=df$total_calls[1:330])
+```
+
+```{r}
+plot(y=df$total_calls[31:350], x=df$total_calls[1:320])
+```
+The correlation first increase then decrease periodically as h increases.
+
+4c)
+```{r}
+data("canadian_gas")
+canadian_gas
+gs=ts(data=canadian_gas$Volume, start=1960, end=2005 )
+plot.ts(canadian_gas$Volume)
+```
+```{r}
+acf(canadian_gas$Volume,lag.max=30)
+```
+By the corregram, there is a decreasing trend that has periodical pattern
+```{r}
+plot(y=canadian_gas$Volume[6:542], x=canadian_gas$Volume[1:537])
+```
+
+
+
+```{r}
+plot(y=canadian_gas$Volume[11:542], x=canadian_gas$Volume[1:532])
+```
+
+```{r}
+plot(y=canadian_gas$Volume[21:542], x=canadian_gas$Volume[1:522])
+```

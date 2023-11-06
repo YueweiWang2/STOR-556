@@ -1,0 +1,123 @@
+---
+title: "556 HW6"
+output:
+  word_document: default
+  html_notebook: default
+---
+
+#Q1
+#a)
+
+$\operatorname{Var}\left(X_t\right)=\operatorname{Var}\left(Z_t+\theta Z_{t-1}+\Theta Z_{t-12}+\theta \Theta Z_{t-13}\right)$
+
+$=\operatorname{Var}\left(Z_t\right)+\operatorname{Var}\left(\theta Z_{t-1}\right)+\operatorname{Var}\left(\Theta Z_{t-12}\right)+\operatorname{Var}\left(\theta \Theta Z_{t-13}\right)$
+
+$=\operatorname{Var}\left(Z_t\right)+\theta^2 \operatorname{Var}\left(Z_{t-1}\right)+\Theta^2 \operatorname{Var}\left(Z_{t-12}\right)+\theta^2 \Theta^2 \operatorname{Var}\left(Z_{t-13}\right)$
+
+$=\sigma_Z^2+\theta^2 \sigma_Z^2+\Theta^2 \sigma_Z^2+\theta^2 \Theta^2 \sigma_Z^2$
+
+$=\sigma_Z^2\left(1+\theta^2+\Theta^2+\theta^2 \Theta^2\right)$
+
+$\rho_X(h)=\operatorname{Corr}\left(X_t, X_{t+h}\right)=\frac{\operatorname{Cov}\left(X_t, X_{t+h}\right)}{\sqrt{\operatorname{Var}\left(X_t\right) \operatorname{Var}\left(X_{t+h}\right)}}$
+
+$\operatorname{Cov}\left(X_t, X_{t+h}\right)=\operatorname{Cov}\left(Z_t+\theta Z_{t-1}+\Theta Z_{t-12}+\theta \Theta Z_{t-13}, Z_{t+h}+\theta Z_{t+h-1}+\Theta Z_{t+h-12}+\theta \Theta Z_{t+h-13}\right)$  
+$= \begin{cases}1 & \text { if } h=0, \\ \frac{\theta+\Theta^2 \theta}{1+\theta^2+\Theta^2+\theta^2 \Theta^2} & \text { if } h=1, \\ \frac{\theta \Theta}{1+\theta^2+\Theta^2+\theta^2 \Theta^2} & \text { if } h=11, \\ \frac{\Theta+\theta^2 \Theta}{1+\theta^2+\Theta^2+\theta^2 \Theta^2} & \text { if } h=12, \\ \frac{\theta \Theta}{1+\theta^2+\Theta^2+\theta^2 \Theta^2} & \text { if } h=13, \\ 0 & \text { else. }\end{cases}$
+
+$\rho_X(h)= \begin{cases}1 & \text { if } h=0, \\ \frac{\Theta}{1+\Theta^2} & \text { if } h=12, \\ 0 & \text { else. }\end{cases}$ for $\theta=0$
+
+```{r}
+library(forecast)
+acf <- ARMAacf(ma=c(0.7,rep(0,10),-0.5,-0.5*0.7), lag.max=30, pacf=F)
+plot(acf)
+```
+
+
+
+#b)
+```{r}
+set.seed(99)
+q1b <- arima.sim(list(ma=c(0.7,rep(0,10),-0.5,-0.5*0.7)), n=300)
+
+par(mfrow=c(1,3))
+plot(q1b)
+acf(q1b,lag.max=30)
+pacf(q1b,lag.max=30)
+```
+#c
+```{r}
+model <- Arima(q1b, order = c(0,0,1), seasonal = list(order = c(0,0,1), period = 12))
+summary(model)
+```
+$X_t=Z_t+0.7527 Z_{t-1}-0.5701 Z_{t-12}-0.7527*0.5701 Z_{t-13}$ and ${Z_t}\sim WN(0,1.076)$
+It's close to the original model
+
+#d)
+```{r}
+forecast <- forecast(model, h=12)
+plot(forecast)
+```
+#Q2
+#a
+```{r}
+airpass <- read.csv("airpass.txt", header=FALSE)
+airpass.ts<- ts(airpass, frequency=12)
+airpass2 <- ts(airpass[1:(nrow(airpass)-12), ], frequency=12)
+airpass2log <- log(airpass2)
+```
+
+```{r}
+t <- seq(1,length(airpass2log))
+t2 <- t^2
+cos12 <- cos(2*pi*t/12)
+sin12 <- sin(2*pi*t/12)
+cos6 <- cos(2*pi*t/6)
+sin6 <- sin(2*pi*t/6)
+cos4 <- cos(2*pi*t/4)
+sin4 <- sin(2*pi*t/4)
+reg <- lm(airpass2log ~ t + t2 + cos12 + sin12 + cos6 + sin6 + cos4 + sin4)
+summary(reg)
+```
+```{r}
+plot.ts(airpass2log)
+lines(ts(reg$fitted.values, start=1, end=11, frequency=12),col="red")
+```
+```{r}
+resid <- ts(reg$residuals, start=c(1,1), end=c(11,12), frequency=12)
+sarima<- auto.arima(resid, max.p = 2, max.q = 2, max.d = 1,start.p = 0, start.q = 0,max.P = 2, max.Q = 2, max.D = 1,start.P = 0, start.Q = 0,allowdrift = FALSE, ic = "aic",stationary=TRUE)
+summary(sarima)
+```
+
+```{r}
+forecast2 <- forecast(sarima, h=12)
+plot(forecast2)
+
+t.forecast <- seq(133,144)
+mat <- cbind(rep(1,12), t.forecast, t.forecast^2, cos(2*pi*t.forecast/12),
+sin(2*pi*t.forecast/12), cos(2*pi*t.forecast/6), sin(2*pi*t.forecast/6),
+cos(2*pi*t.forecast/4), sin(2*pi*t.forecast/4))
+v <- c(mat %*% reg$coefficients)
+seastrend.forecast <- ts(v, start=c(12,1), end=c(12,12), frequency=12)
+airpass2.forecast <- ts(exp(forecast2$mean + seastrend.forecast),start=c(12,1), end=c(12,12), frequency=12)
+plot.ts(airpass.ts, main="Original series")
+lines(airpass2.forecast, col="blue", lwd=2 )
+
+```
+#b
+```{r}
+smod2 <- auto.arima(airpass2log, max.p = 2, max.q = 2, max.d = 1,
+                                 start.p = 0, start.q = 0,
+                                 max.P = 2, max.Q = 2, max.D = 1,
+                                 start.P = 0, start.Q = 0,
+                                 allowdrift = FALSE, ic = "aic")
+summary(smod2)
+smod2.forecast <- forecast(smod2, h=12)
+airpass.forecast2 <- ts(exp(smod2.forecast$mean),start=c(12,1), end=c(12,12), frequency=12)
+plot.ts(airpass.ts, main="Original series")
+lines(airpass.forecast2, col="blue", lwd=2 )
+```
+#c
+```{r}
+sum((window(airpass.ts, start=c(12,1)) - airpass2.forecast)^2)
+sum((window(airpass.ts, start=c(12,1)) - airpass.forecast2)^2)
+```
+The forecast in (a) is better

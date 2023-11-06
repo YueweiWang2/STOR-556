@@ -1,0 +1,121 @@
+---
+title: "STOR 556 HW3 Q2b,Q3"
+output:
+  word_document: default
+  html_notebook: default
+---
+
+```{r}
+phi <- (-0.7)^(0:6)*(.7)
+arima1 <- arima.sim(list(order = c(7,0,0), ar = phi), n = 500)
+plot(arima1, type="l")
+```
+```{r}
+acf(arima1, lag.max=20)
+
+```
+```{r}
+arima2 <- arima.sim(list(order = c(7,0,0), ar = phi), n = 500)
+plot(arima2, type="l")
+```
+
+```{r}
+acf(arima2, lag.max=20)
+```
+It's close to the ACF calculated for MA(1)
+
+Q3
+```{r}
+library(forecast)
+sunspot <- read.table("SUNSPOTS.txt")
+sunspot.ts = ts(data = sunspot)
+plot.ts(sunspot.ts)
+acf(sunspot.ts, lag.max = 20)
+dm = sunspot.ts-mean(sunspot.ts)
+```
+```{r}
+auto.arima(dm,max.p=10,max.q=0,ic="aic",allowmean=FALSE)
+```
+
+According to AIC, p should be 4
+```{r}
+auto.arima(dm,max.p=10,max.q=0,ic="bic",allowmean=FALSE)
+```
+According to BIC, p=2
+```{r}
+pacf(dm,lag.max=20)
+```
+According to pacf, p=2
+c)
+For AR(2)model
+```{r}
+qcmodel = arima(dm,order=c(2,0,0),include.mean = FALSE, method="ML")
+qcmodel
+```
+
+d)
+```{r}
+resid.qd = resid(qcmodel)
+plot(resid.qd,ylab="Residuals",xlab="Time")
+```
+```{r}
+acf(resid.qd, lag.max=20,ylim=c(-1,1))
+pacf(resid.qd,lag.max=20,ylim=c(-1,1))
+```
+```{r}
+qqnorm(resid.qd)
+qqline(resid.qd)
+```
+It follows the assumption of normal distribution. PACF is not so significant at any lag value and acf is only significant when lag=0. The normal qq plot has points that are mostly distributed along the line.
+
+e)
+```{r}
+mean(sunspot.ts)
+```
+
+$$
+X_t-\mu=1.4076\left(X_{t-1}-\mu\right)-0.7131\left(X_{t-2}-\mu\right)+Z_t
+$$
+$$
+X_t=1.4076 X_{t-1}-0.7131 X_{t-2}+Z_t+(1-1.4076+0.7131) \mu
+$$
+So
+$$
+X_t=1.4076 X_{t-1}-0.7131 X_{t-2}+Z_t+14.33711
+$$
+h)
+```{r}
+h=5
+dm.forecast = predict(qcmodel,h)
+dm.forecast$pred
+```
+```{r}
+ts.forecast = dm.forecast$pred + mean(sunspot.ts)
+ts.forecast
+
+```
+```{r}
+dm.forecast$se
+```
+```{r}
+time = (100:104)
+bond = 1.96*dm.forecast$se
+mean_ts = mean(sunspot.ts)
+ss.forecast.pred = dm.forecast$pred + mean_ts
+lowerb = ss.forecast.pred - bond
+upperb = ss.forecast.pred + bond
+lowerb
+upperb
+```
+CI 101 =[62.514642,121.7149]
+CI 102 =[40.118678,142.3368]
+CI 103 =[13.647406, 140.4751] 
+CI 104 =[-9.746562, 125.2527]
+CI 105 =[-27.069625, 108.4245]
+```{r}
+plot(sunspot.ts, xlim=c(0,105))
+lines(time,ss.forecast.pred,lwd=2)
+lines(time,lowerb,lty=2,lwd=2)
+lines(time,upperb,lty=2,lwd=2)
+```
+

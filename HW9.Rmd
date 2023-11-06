@@ -1,0 +1,251 @@
+---
+title: "HW9"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+#Q1
+
+#a)
+
+$$\Delta x_{1, t}=x_{1, t}-x_{1, t-1}=\phi x_{1, \pi-1}+c x_{2, t-1}-c \phi x_{2, t, 2}+z_{1, c}-c x_{2, t-2}-Y_{1, t-1}$$
+
+
+$$
+=(\phi-1) x_{1, t-1}+c x_{2, t-1}-c \phi x_{2, t-2}+z_{1, t}
+$$
+$$
+=(\phi-1) x_{1, t-1}+(c-c \phi) x_{2, t-1}+\left(c \phi x_{2, t 1}-c \phi x_{2, t 2}\right)+z_{1, t}
+$$
+
+$$
+=(\phi-1) x_{1, t-1}+(c-c \phi) x_{2, t-1}+c \phi \Delta x_{2, t-1}+z_{1, t}
+$$
+and $\beta_1=\phi-1$, $\beta_\nu=c-c \phi$, $\gamma_1=c \phi$
+
+#b
+$$x_{1, t}=\phi X_{1, t-1}+c X_{2, t-1}-c \phi x_{2, t-2}+z_{1, t}$$
+$$
+x_{2, t}=x_{2, t-1}+z_{2 t}
+$$
+
+$$
+x_t=\Phi_1 x_{t-1}+\Phi_2 x_{t-2}+z_t
+$$
+$$
+\Phi_1=\left(\begin{array}{cc}
+\phi & c \\
+0 & 1
+\end{array}\right) \quad \quad \Phi_2=\left(\begin{array}{cc}
+0 & -c \phi \\
+0 & 0
+\end{array}\right)
+$$
+
+$$
+\text { VECM: } X_t-x_{t-1}=\left(\Phi_1+\Phi_2-I\right) x_{t-1}-\Phi_2\left(x_{t-1}-X_{t-2})+z t \right.
+$$
+$$
+\pi=\left(\begin{array}{cc}
+\phi-1 & c-c \phi \\
+0 & 0
+\end{array}\right)
+$$
+
+$$
+\widetilde{\Gamma}=\left(\begin{array}{ll}
+0 & c \phi \\
+0 & 0
+\end{array}\right)
+$$
+$$
+a=\left[\begin{array}{c}
+\phi-1 \\
+0
+\end{array}\right]
+$$
+
+$$
+b=\left[\begin{array}{ll}
+1 & -c
+\end{array}\right]
+$$
+
+
+#c
+
+$$
+X_{t-}-X_{t-1}=\left(\Phi_1-I\right) X_{t-1}+\Phi_2 X_{t-2}+Z_t 
+$$
+
+$$
+=\left(\Phi_1-I\right) x_{t-1}-\left(\Phi_1-I\right) x_{t-2}+\left(\Phi_1-I\right) x_{t-2}+\Phi_2 x_{t-2}+Z_t
+$$
+
+$$
+=\left(\Phi_1-I\right)\left(x_{t-1}-x_{t-2})+\left(\Phi_1+\Phi_2-I\right) x_{t-2}+Z_t \right.
+$$
+$$
+=\left(\Phi_1-I\right) \Delta x_{t-1}+\left(\Phi_1+\Phi_2-I\right) x_{t-2}+Z_t .
+$$
+$$
+\pi=\Phi_1+\Phi_2-1=\left(\begin{array}{cc}
+\phi-1 & c-c \phi \\
+0 & 1-1
+\end{array}\right)=\left(\begin{array}{cc}
+\phi-1 & c-c \phi \\
+0 & 0
+\end{array}\right)
+$$
+$$
+\Gamma=\Phi_1-I=\left(\begin{array}{cc}
+\Phi 1 & c \\
+0 & 0
+\end{array}\right)
+$$
+
+
+
+#Q2
+
+#a
+```{r,warning=FALSE}
+library(AER)
+library(urca)
+data("PepperPrice")
+log_p <- log(PepperPrice)
+plot.ts(log_p)
+
+```
+
+#b
+for black pepper
+```{r}
+ur.tr = ur.df(log_p[,1],type='trend')
+summary(ur.tr)
+
+```
+Because -2.0712>-3.98, 2.3821<phi3, we fail to reject H0. So we conclude pi = 0 and beta2 = 0. Then, we continue the test.
+```{r}
+ur.dr2 = ur.df(log_p[,1],type='drift')
+summary(ur.dr2)
+```
+
+-2.1721>tau2 and 2.4731<phi1, we fail to reject H0. So we conclude pi = 0 and beta1 = 0. Then, we continue the test.
+
+```{r}
+ur3 = ur.df(log_p[,1],type='none')
+summary(ur3)
+
+```
+0.3486>tau1, we fail to reject H0. So we conclude pi = 0.It has a unit root and it is not stationary.
+
+For white pepper
+```{r}
+ur.tr2 = ur.df(log_p[,2],type='trend')
+summary(ur.tr2)
+
+```
+-1.782>tau3, 1.6134<phi3, we fail to reject H0. So we conclude pi = 0 and beta2 = 0. Then, we continue the test.
+```{r}
+ur.dr = ur.df(log_p[,2],type='drift')
+summary(ur.dr)
+
+```
+-1.7855>tau2, 1.7474<phi1, we fail to reject H0. So we conclude pi = 0 and beta1 = 0. Then, we continue the test.
+```{r}
+ur.no2 = ur.df(log_p[,2],type='none')
+summary(ur.no2)
+
+```
+0.4478>tau1, we fail to reject H0. So we conclude pi = 0. It has a unit root and it is not stationary
+
+#c
+```{r}
+vecm.pepper = ca.jo(log_p)
+summary(vecm.pepper)
+
+```
+We can say they are cointegrated. Rank 1 is suggested because we fail to reject r <= 1 and we reject r = 0 at 90% confident level.
+
+#d
+```{r}
+vecm.r1 = cajorls(vecm.pepper,r = 1)
+vecm.r1
+
+```
+black = 0.8904272 * white + error term
+
+
+#Q3
+```{r,warning=FALSE}
+library(vars)
+```
+
+#(a)
+```{r}
+
+set.seed(1)
+Ft = arima.sim(list(order = c(1,0,0),ar=0.7),n=50)
+lambda = c(rep(0.25,10),rep(2,10))
+err = rnorm(20*50,mean=0,sd=1)
+err = matrix(err,nrow=20,ncol=50)
+Yt = lambda%*%t(Ft) + err
+par(mfrow = c(4,3))
+par(mar=c(2,2,2,2))
+for(l in (1:5)){
+ plot.ts(Yt[l,])
+}
+for(l in (16:20)){
+ plot.ts(Yt[l,])
+}
+ts.plot(Yt[c(1:5,16:20),], gpars = list(col=rainbow(10)))
+
+```
+
+#(b)
+
+```{r}
+source("DFM-VAR-library.R")
+for(a in (1:20)){
+ Yt[a,] = (Yt[a,] - mean(Yt[a,]))/sd(Yt[a,])
+}
+out = DFM.VAR(Yt, r=1)
+plot.ts(t(out$Fh))
+plot.ts(out$Lam,xlab="dim")
+
+```
+#(c)
+```{r}
+Ft_aver = colSums(Yt)/20
+print(Ft_aver)
+```
+#(d)
+```{r}
+
+Ft_aver_standard = (Ft_aver-mean(Ft_aver))/sd(Ft_aver)
+Ft_out = out$Fh[1,]
+Ft_out_standard = (-1)*(Ft_out-mean(Ft_out))/sd(Ft_out)
+Ft_standard = (Ft-mean(Ft))/sd(Ft)
+plot(Ft_standard)
+lines(Ft_aver_standard,col="red")
+lines(Ft_out_standard,col="blue")
+```
+```{r}
+print(mean(abs(Ft_standard - Ft_aver_standard)))
+print(mean(abs(Ft_standard - Ft_out_standard)))
+
+```
+
+Both lines are in close proximity to the Ft line, but it appears that the standardized Ft_out line in blue fits marginally better. This is supported by the calculation of the mean absolute error, indicating that the Ft_out computed in part (b) is a better fit.
+
+
+
+#(e)
+```{r}
+plot(out$Lam, type="l")
+```
+
+Equation (2) takes into account the various values of lambda. Simply averaging Yjt would not accurately measure F_t because it assumes all weights are equal. By using equation (2), the more important F_t in Y_t is weighted more heavily. Therefore, using the weights lambda as in equation (2) may work better than using equal weights as in equation (1).

@@ -1,0 +1,108 @@
+---
+title: "HW2"
+output:
+  word_document: default
+  html_notebook: default
+---
+
+Q1
+c) 
+```{r}
+# for mt = t^3
+
+filter1<- function(fc,t){
+  return( (-1*fc(t-2) + 4*fc(t-1) + 3*fc(t) + 4*fc(t+1) - fc(t+2))/9 )
+}
+
+mt <- function(t){t^3}
+
+c(mt(1),  filter1(mt, 1))
+c(mt(2),  filter1(mt, 2))
+c(mt(3),  filter1(mt, 3))
+
+
+```
+This means t=1,2,3 is true for $$m_t=t^3$$
+
+```{r}
+# for mt = t^4
+
+mt2 <- function(t){t^4}
+
+c(mt2(1),  filter1(mt2, 1))
+c(mt2(2),  filter1(mt2, 2))
+c(mt2(3),  filter1(mt2, 3))
+
+```
+This means it's not true for $m_t=t^4$ with t=1,2,3
+
+b)
+```{r}
+st <- function(t){cos(2*pi/3 * t) }
+filter1(st, 1)
+
+filter1(st, 2)
+
+filter1(st, 3)
+```
+
+It's approximately 0 which satisfy the condition
+
+Q2 a)
+```{r}
+library(itsmr)
+deathsts = ts(deaths, frequency = 12)
+decompose = decompose(deathsts, "additive")
+plot(decompose)
+par(mfrow=c(1,2))
+plot.ts(decompose$seasonal)
+plot.ts(decompose$trend)
+
+```
+
+```{r}
+plot.ts(deathsts)
+lines(decompose$trend+decompose$seasonal,col="pink")
+```
+```{r}
+years = seq(1,72)
+lm.deaths = lm(decompose$random~years)
+ts2 = resid(lm.deaths)
+plot(ts(ts2), ylab="Deaths",xlab="Year")
+```
+```{r}
+acf(ts(ts2), lag.max=20, ylim=c(-1,1))
+```
+b)
+```{r}
+deaths.lm =lm(deaths~years+I(years^2)+I(cos(2*pi*years/12))+I(sin(2*pi*years/12))+I(cos(2*pi*years/6)))
+```
+
+```{r}
+fitted(deaths.lm)
+```
+```{r}
+plot.ts(deaths)
+lines(fitted(deaths.lm),col="pink")
+```
+```{r}
+plot.ts(resid(deaths.lm))
+```
+```{r}
+acf(resid(deaths.lm), lag.max=20, ylim=c(-1,1))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

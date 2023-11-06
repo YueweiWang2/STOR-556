@@ -1,0 +1,431 @@
+---
+title: "STOR 556 HW4"
+output:
+  word_document: default
+  html_notebook: default
+---
+
+Q1 a)
+
+```{r}
+library(readr)
+library(forecast)
+air=read.table("airpass.txt")
+air.ts = ts(air)
+plot.ts(air.ts)
+title("original series")
+```
+We can try log transformation, so the model is
+```{r}
+log.air = log(air)
+log.air.ts = ts(log.air)
+plot.ts(log.air.ts)
+title("log transformation series")
+```
+the variability of the series are similar.
+
+Q1(b)
+```{r}
+months <- time(log.air.ts)
+monthssqr <- (time(log.air.ts))^2
+lm.log.airpass <- lm(log.air.ts ~ months + monthssqr)
+summary(lm.log.airpass)
+```
+The first and second order are both significant, so we can include both of them in polynomial trend.
+```{r}
+n <- length(log.air.ts)
+tt <- seq(1,n)
+tt2 <- tt**2
+cos12 <- cos(2*pi*tt/12)
+sin12 <- sin(2*pi*tt/12)
+cos6 <- cos(2*pi*tt/6)
+sin6 <- sin(2*pi*tt/6)
+cos4 <- cos(2*pi*tt/4)
+sin4 <- sin(2*pi*tt/4)
+mod <- lm(log.air.ts ~ tt + tt2 + cos12 + sin12 + cos6 + sin6 + cos4 + sin4)
+summary(mod)
+plot(log.air.ts)
+lines(fitted.values(mod),col="red")
+```
+c)
+```{r}
+resid = mod$residuals
+plot.ts(resid)
+title("residuals")
+acf(resid,lag.max = 30)
+pacf(resid,lag.max = 30)
+```
+
+d)
+```{r}
+ar.mod = auto.arima(resid,max.p=5,max.q=0,ic="aic",allowmean=FALSE)
+ar.mod
+```
+We can fit AR(4) by AIC criterion.
+
+
+e)
+```{r}
+ar.mod1 = arima(resid,order=c(4,0,0),include.mean = FALSE,method = "ML")
+resid.ar1 = resid(ar.mod1)
+acf(resid.ar1)
+pacf(resid.ar1)
+```
+
+```{r}
+Box.test(ar.mod1$residuals, lag=20, type="Ljung-Box")
+```
+p-value =1.288e-09 so we reject H0 and conclude that the data is not independently distributed. Therefore, it is not iid white noise.
+
+f)
+```{r}
+print(ar.mod1)
+```
+Using data from q(b) $X_t$ is the transformed series
+
+$$
+
+ X_t=0.01319 \cdot t-2.148 \cdot 10^{-5} t^2-0.1415 \cdot \cos (2 \pi t / 12) -0.04927 \cdot \sin (2 \pi t / 12)-0.02275 \cdot \cos (2 \pi t / 6)  +0.07872 \cdot \sin (2 \pi t / 6)+0.02731 \cdot \cos (2 \pi t / 4)-0.008706 \cdot \sin (2 \pi t / 4)+Y_t
+
+$$
+
+
+So we can get
+$$
+Y_t=0.2665 \cdot Y_{t-1}-0.1933 \cdot Y_{t-2}+0.3637 \cdot Y_{t-3}-0.3086 \cdot Y_{t-4}+Z_t
+$$
+$Y_t$ is residuals after fitting the polynomial and seasonal components
+
+$W_t$ is the original series.
+$$
+
+
+
+W_t=\exp \left(0.01319 \cdot t-2.148 \cdot 10^{-5} t^2-0.1415 \cdot \cos (2 \pi t / 12)\right. -0.04927 \cdot \sin (2 \pi t / 12)-0.02275 \cdot \cos (2 \pi t / 6)  \left.+0.07872 \cdot \sin (2 \pi t / 6) \mid+0.02731 \cdot \cos (2 \pi t / 4)-0.008706 \cdot \sin (2 \pi t / 4)+Y_t\right)
+
+
+
+$$
+and 
+$$
+Y_t=0.2665 \cdot Y_{t-1}-0.1933 \cdot Y_{t-2}+0.3637 \cdot Y_{t-3}-0.3086 \cdot Y_{t-4}+Z_t
+$$
+g)
+```{r}
+h=5
+Yt.forcast = predict(ar.mod1,h)
+Yt.forcast$pred
+```
+
+```{r}
+predict.pre = rep(NA, h)
+for (i in c(145:149)){
+tt <- i
+tt2 <- tt**2
+# Seasonal component
+cos12 <- cos(2*pi*tt/12)
+sin12 <- sin(2*pi*tt/12)
+cos6 <- cos(2*pi*tt/6)
+sin6 <- sin(2*pi*tt/6)
+cos4 <- cos(2*pi*tt/4)
+sin4 <- sin(2*pi*tt/4)
+newdata = data.frame(tt,tt2,cos12,sin12,cos6,sin6,cos4,sin4)
+pre = predict(mod,newdata)
+print(pre)
+predict.pre[i-144] = pre
+}
+```
+```{r}
+predict.pre
+```
+
+```{r}
+ts.forecast = exp(Yt.forcast$pred+predict.pre)
+ts.forecast
+```
+
+```{r}
+time = (145:149)
+Yt.se = Yt.forcast$se
+plus.or.minus = 1.96*Yt.se
+lower = exp(Yt.forcast$pred+predict.pre-1.96*Yt.se)
+upper = exp(Yt.forcast$pred+predict.pre+1.96*Yt.se)
+lower
+upper
+```
+```{r}
+plot(air.ts, xlim=c(0,150))
+lines(time,ts.forecast,lwd=2, col="red")
+lines(time,lower,lty=2,lwd=2)
+lines(time,upper,lty=2,lwd=2)
+title("Forecasts for the airpass series")
+```
+The red line is the predicted value and the black dash lines are the confidence interval.
+The 95% confidence intervals for t=145 is (414.9551,496.9780), for t=146 is (411.0256,495.3807), for t=147 is(451.5453,547.4881), for t=148 is (450.9135,557.1986), and for t=149 is (452.1004,558.7069).
+
+Q2
+a)
+```{r}
+set.seed(123)
+T <- 200
+phi <- 0.7
+df <- 3
+
+for (i in 1:4) {
+  # generate white noise from t-distribution
+  z <- rt(T, df)
+  
+  # generate time series
+  y <- rep(0, T)
+  for (t in 2:T) {
+    y[t] <- phi*y[t-1] + z[t]
+  }
+  
+  # plot time series
+  plot(y, type="l")
+}
+
+```
+For the 4 realizations, the trendings at the last part of the graphs are all increasing. There are significant increases and decreases in the graphs.
+b)
+```{r}
+y1=arima.sim(list(order=c(1, 0, 0), ar=0.7), n=200,
+                   rand.gen=rt, df=3)
+y2=arima.sim(list(order=c(1, 0, 0), ar=0.7), n=200,
+                   rand.gen=rt, df=3)
+y3=arima.sim(list(order=c(1, 0, 0), ar=0.7), n=200,
+                   rand.gen=rt, df=3)
+y4=arima.sim(list(order=c(1, 0, 0), ar=0.7), n=200,
+                   rand.gen=rt, df=3)
+plot(y1)
+plot(y2)
+plot(y3)
+plot(y4)
+```
+The features are similar in (b) that there are significant increases and decreases in the graphs, tow of the 4 graphs have the last part of the trends are suggesting decreasing trend  and two have increasing trend.
+c)
+I choose the series from part (a)
+```{r}
+# compute sample variance of time series
+var(y1)
+
+# produce correlogram of series
+acf(y1, lag.max=10)
+
+# add model ACF to correlogram
+acf(y1, lag.max=10, type="partial", plot=TRUE)
+```
+$$\begin{aligned} & \text { theoretical } \\ & \qquad \operatorname{Var}\left(x_t\right)=\sigma_{\vartheta}^2 / 1-\varphi^2 \\ & \qquad \varphi=0.7\end{aligned}$$
+
+$$
+\begin{aligned}
+& z_t \sim T(d f=3) \\
+& \operatorname{Var}\left(z_t\right)=V / v-2=3
+\end{aligned}
+$$
+```{r}
+3/0.51
+```
+The value are different but the diffrences not too large so there is not such different.
+d)
+```{r}
+# produce sample PACF plot for 10 lags
+pacf(y1, lag.max=10)
+
+
+```
+In this case, we can see that the PACF is significantly different from zero only at lag 1, so p=1
+e)
+```{r}
+set.seed(123)
+T <- 200
+phi <- 0.7
+
+# define custom distribution for Zt
+rand.gen <- function(n) {
+  u <- runif(n)
+  z <- qnorm(u, mean = 0, sd = 2)
+  return(z)
+}
+
+# generate white noise from custom distribution
+z <- rand.gen(T)
+
+# generate time series
+y <- rep(0, T)
+for (t in 2:T) {
+  y[t] <- phi*y[t-1] + z[t]
+}
+
+# fit AR(1) model to time series
+fit <- arima(y, order=c(1,0,0))
+
+# print summary of model
+summary(fit)
+
+```
+
+
+from the output, the estimated AR(1) parameter is 0.7295 , which is close to the true value of 0.7. 
+The estimated variance of the errors is 3.375, which is close to the variance of the Student t-distribution . 
+
+f)
+```{r}
+qqnorm(fit$residuals)
+qqline(fit$residuals)
+```
+In this case, we can see from the plot that the points are  deviate from a straight line, especially on tail part. This suggests that the residuals are not consistent with the assumption of normal distribution
+
+Q3
+a)
+```{r}
+data("lynx")
+lynx.ts = ts(lynx)
+plot.ts(lynx.ts)
+title("original series")
+```
+b)
+```{r}
+ar.mod2=auto.arima(lynx,max.p=5,max.q=0,ic="aic",allowmean = TRUE)
+ar.mod2
+```
+It suggest AR(2) model with p=2
+
+c)
+For AR(4)
+```{r}
+far4 =function(x, h){forecast(Arima(x, order=c(4,0,0)), h=h)}
+e4 = tsCV(lynx, far4, h=1)
+sqrt(mean(e4^2,na.rm = TRUE))
+```
+For AR(3)
+```{r}
+far3 =function(x, h){forecast(Arima(x, order=c(3,0,0)), h=h)}
+e3 = tsCV(lynx, far3, h=1)
+sqrt(mean(e3^2,na.rm = TRUE))
+```
+For AR(2)
+```{r}
+far2 =function(x, h){forecast(Arima(x, order=c(2,0,0)), h=h)}
+e2 = tsCV(lynx, far2, h=1)
+sqrt(mean(e2^2,na.rm = TRUE))
+```
+For AR(1)
+```{r}
+far1 =function(x, h){forecast(Arima(x, order=c(1,0,0)), h=h)}
+e1 = tsCV(lynx, far1, h=1)
+sqrt(mean(e1^2,na.rm = TRUE))
+```
+The one with the smallest error is AR(2) model, which is same as part b.
+
+d)
+```{r}
+sqrt(mean(e2^2, na.rm=TRUE))
+
+```
+```{r}
+accuracy(Arima(lynx, model=ar.mod2))
+```
+The model from q(c) is larger
+
+Q4
+
+
+
+a)
+```{r}
+library(fpp2)
+data("books")
+paperback=books[,1]
+hardcover=books[,2]
+h.ts=ts(hardcover)
+p.ts=ts(paperback)
+plot.ts(p.ts)
+title("Harcover books")
+plot.ts(h.ts)
+title("Paperback books")
+```
+We can see from the graphs, the two trending graph indicate the random data and the increasing trends.
+b)
+```{r}
+fc1 <- ses(h.ts, h=4,level=0.95)
+fc2 <- ses(p.ts, h=4,level=0.95)
+fc1$model
+fc2$model
+```
+
+```{r}
+autoplot(fc1) +
+autolayer(fitted(fc1), series="Fitted") +
+ylab("hardcover books)") + xlab("time")
+```
+```{r}
+autoplot(fc2) +
+autolayer(fitted(fc2), series="Fitted") +
+ylab("hardcover books)") + xlab("time")
+```
+c)
+For hardcover
+```{r}
+round(accuracy(fc1),2)
+
+```
+For paperback
+```{r}
+round(accuracy(fc2),2)
+
+```
+
+d)
+```{r}
+
+fc3 = holt(h.ts, damped=TRUE, h = 4,level = 0.95)
+fc4 = holt(p.ts, damped=TRUE, h = 4,level = 0.95)
+
+autoplot(fc3) +
+xlab("time") + ylab("Holt's Linear Method for Hardback Series")
+autoplot(fc4) +
+xlab("time") + ylab("Holt's Linear Method for Paperback Series")
+```
+e)
+```{r}
+accuracy(fc1)
+accuracy(fc2)
+accuracy(fc3)
+accuracy(fc4)
+
+```
+Holt’s method results in lower RMSE than simple exponential smoothing.
+f)
+```{r}
+
+plot(fc2, main = "Comparison of Forecasting Methods for Paperback Series")
+lines(fc4$mean, col = "red")
+plot(fc1, main = "Comparison of Forecasting Methods for Hardback Series")
+lines(fc3$mean, col = "red")
+```
+Holt’s method is better as it allows the forecasting of data with a trend
+g)
+
+```{r}
+fc1$upper
+fc1$lower
+
+```
+
+```{r}
+fc2$upper
+fc2$lower
+```
+
+```{r}
+fc3$upper
+fc4$lower
+```
+
+```{r}
+fc4$upper
+fc4$lower
+```
+
+RMSE's interval are narrower than intervals ses and holt, but they are all not so different.

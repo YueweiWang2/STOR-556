@@ -1,0 +1,133 @@
+---
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+This is data from yahoo finance.
+```{r}
+library(readr)
+df=read.csv("AMZN.csv")
+head(df,10)
+
+```
+```{r}
+df1=subset(df[2])
+m1 <- ts(data = df1,start = 2010, end = 2017,frequency=100)
+plot.ts(m1,ylab = 'Amazon stock price',xlab='Time')
+```
+This analysis can obtain trends of amazon stock price. We can use time series to analyze the trends of stock price level and predict the future stock price.
+```{r}
+df2=read.csv("monthly-beer-production-in-austr.csv")
+head(df2,10)
+```
+```{r}
+
+df22=subset(df2[2],start = 1981, end = 1982)
+m2 <- ts(data = df22)
+plot.ts(m2,ylab = 'Monthly.beer.production',xlab='Time')
+```
+source: https://www.kaggle.com/datasets/shenba/time-series-datasets. This analysis can obtain trends of monthly beer production in Austrilia. We can use time series to analyze the trends of production and predict the future production trends.
+
+
+Q2
+1)
+```{r}
+
+TT <- 50
+set.seed(1)
+p <- .25
+zt1 <- 1+rbinom(TT+1,1,p)
+zt2 <- 1+rbinom(TT+1,1,p)
+xt1 <- zt1[2:(TT+1)] * zt1[1:TT]
+xt2 <- zt2[2:(TT+1)] * zt2[1:TT]
+
+par(mfrow = c(1, 2))
+plot.ts(xt1,ylab = 'x_t',xlab='t')
+plot.ts(xt2,ylab = 'x_t',xlab='t')
+
+```
+2)
+$E(X_t)=E(Z_t*Z{t-1})=E(Z_t)*E(Z_{t-1})=E(Z_t)^2= (1*3/4+2*1/4)^2=25/16=1.5625$
+$E(X_t^2)=E[Z_t^2* Z_{t-1}^2]=E[Zt^2]*E[Z_{t-1}^2]=E[Z_t^2]=49/16=3.0625$
+```{r}
+mean(xt1)
+mean(xt2)
+mean(xt1^2)
+mean(xt2^2)
+
+
+
+```
+Close to the theoretical result. The xt^2 is more different. 
+
+3)
+$E(X_t*X_{t−1})=E(X_t)*E(X_{t-1})=E(Z_t*Z_{t−1})*E(Z_{t-1}*Z_{t−2})= 2.734375$
+$Corr(X_t, X_{t−1})=(E(X_t*X_{t−1}) − E(X_t)E(X_{t−1})/((E(X_t^2) − (E(X_t)^2)*(E(X_{t−1}^2 − (E_{Xt−1})^2)$
+$=(625/16 - (25/16)^2) / \sqrt((49/16 - (25/16)^2)(49/16 - (25/16)^2))=0.4717$
+```{r}
+
+mean(xt1[2:50]*xt1[1:49])
+mean(xt2[2:50]*xt2[1:49])
+
+
+cor(xt1[2:50],xt1[1:49])
+cor(xt2[2:50],xt2[1:49])
+
+```
+
+The value are all close to theoretical result. Xt1 has closer $E(X_t*X_{t−1})$, $x_t2$ closer correlation 
+4)$X_t$ can be 1,2,4
+$P(x_t=1)=3/4*3/4=9/16=0.5625$
+$P(x_t=2)=3/4*1/4*2=6/16=0.375$
+$p(x_t=4)=1/4*1/4=1/16=0.0625$
+Then we can get
+$E(X_t) = 1 × 9/16 + 2 × 6/16 + 4 ×1/16= 17/16=1.0625$
+$E(X_t^2) = 1 × 9/16 + 2*2 × 6/16 + 4*4 ×1/16= 41/16=2.5625$
+The number we get in realizations are all higher than empirical value. Xt1 is closer to the value but still not so close to empirical value. 
+```{r}
+c(sum(xt1==1)/TT,sum(xt1==2)/TT,sum(xt1 == 4)/TT)
+c(sum(xt2==1)/TT,sum(xt2==2)/TT,sum(xt2 == 4)/TT)
+```
+The probability for realization 2 is closer  
+
+Q3Suppose a time series model
+
+$X_t=m_t+10Z_t$ with IID noise $Z_t$ with $Z_t~N (0,1) and T=50, m_t=t^2$
+.
+```{r}
+set.seed(12345)
+tt <- seq(1,TT) 
+mt <- tt 
+zt3 <- rnorm(TT,0,1) 
+zt4 <- rnorm(TT,0,1) 
+xt3 <- mt + 10*zt3
+xt4 <- mt + 10*zt4
+par(mfrow = c(1, 2))
+
+plot.ts(xt3,ylab = 'x_t',xlab='t')
+plot.ts(xt4,ylab = 'x_t',xlab='t')
+```
+$E(X_t)=E(10Z_t+m_t)=E(m_t)+E(10Z_t)=t^2$   t=1,2,...T
+$E(Xt^2)=E(100Z_t^2)+E(m_t^2*t^2)+20E(m_t*Z_t)=t^4$ t=1,2,...T
+```{r}
+#empirical value
+mean(xt3)
+mean(xt4)
+mean(xt3^2)
+mean(xt4^2)
+```
+
+```{r}
+#empirical value
+ mean(xt3[-1]*xt3[-TT])
+  cor(xt3[-1],xt3[-TT])
+
+mean(xt4[-1]*xt4[-TT])
+  cor(xt4[-1],xt4[-TT])
+```
+E(Xt*Xt−1)=E(mt+10Zt)*E((mt-1)+(10Zt-1))=E$m_tm_{t-1}+10m_tZ_{t-1}+10Z_t*m_{t-1}+100Z_tZ_{t-1}=t^2(t-1)^2$
+$Corr(X_t, X_{t−1})=0$
+we cannot average over time to represent the expected value as values are dependent on t
+

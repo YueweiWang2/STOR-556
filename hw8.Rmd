@@ -1,0 +1,263 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+
+#Q1
+$\phi=0.6, \sigma_Z^2=2$, and $\bar{x}_{100}=.271$ so $$X_t=0.6 X_{t-1}+Z_t$$ 
+since $$\sigma_x^2=\frac{\sigma_z^2}{1-\phi^2}=\frac{2}{1-0.36}=3.125$$ and $$\operatorname{Var}(\bar{x})=\frac{\sigma_x^2}{T} \frac{1+\phi}{1-\phi}=\frac{3}{100} \frac{1.6}{0.4}=0.125$$
+The confidence interval is $$\bar{x} \pm 1.96 \sqrt{\operatorname{Var}(\bar{x})}=0.271 \pm 0.693=(-0.422,0.964)$$
+0 is in the confidence interval so we can't reject the null hypothesis. The data are compatible
+
+#Q2
+
+#a
+```{r,warning=F}
+library(forecast)
+library(vars)
+library(glmnet)
+library(expm)
+library(matrixStats)
+library(Rcpp)
+```
+```{r}
+changes <- read.table("changes.dat")
+series1 <- ts(data = changes$V1)
+series2 <- ts(data = changes$V2)
+plot.ts(changes)
+```
+#b
+```{r}
+par(mar=c(3,3,3,3))
+acf(changes,lag.max = 50, type = "correlation", plot = TRUE)
+```
+Based on the first differences of fixed investment itself, it appears that there is a cyclical dependence across time. However, there are no apparent cyclical patterns in the first differences of business inventories themselves, but there is a significant autocorrelation at lag = 4.
+
+At lag = 1, the top-right autocorrelation function (ACF) reveals a significant correlation between Xt+h and X2t, indicating that business inventories from the previous quarter provide information about current fixed investment.
+
+Conversely, the bottom-left ACF does not display any significant correlations between Xit+h and X2t for any h < 0.
+
+```{r}
+par(mar=c(3,3,3,3))
+acf(changes,lag.max = 50, type = "partial", plot = TRUE)
+```
+The partial autocorrelation function (PACF) indicates some significant autocorrelation for both time series across time, with a lag of 1 for fixed investment and a lag of 4 for business inventories.
+
+However, the top-right PACF diagram does not suggest any significant dependence between past inventories and current investment.
+
+In contrast, the bottom-left PACF diagram shows significant dependence between past investment and current inventories at a lag of l and multiple lags beyond 20.
+
+$V1_t$ has temporal dependence with $V2_t+1$.
+
+#c
+```{r}
+auto.arima(series1,max.p=5,max.q=5,max.P = 0,max.Q=0,ic="aic",allowmean = TRUE)
+auto.arima(series2,max.p=5,max.q=5,max.P = 0,max.Q=0,ic="aic",allowmean = TRUE)
+series1_ar <-arima(series1, order=c(2,0,1), include.mean = TRUE, method = "ML")
+series2_ar <-arima(series2, order=c(1,0,0), include.mean = TRUE, method = "ML")
+y1 <- residuals(series1_ar)
+y2 <- residuals(series2_ar)
+y <- cbind(y1,y2) 
+acf(y)
+```
+After applying "pre-whitening", the level of dependence between these two time series appears to have decreased. However, it is still possible to argue that the top-right ACF plot indicates significant dependence between past investment and current inventories at a lag of 1.
+The result doesn't show the two series are uncorrelated. There are might be some correlation between V1_t and V2_t+1, since they are still go beyond the 95% interval.
+
+
+#d
+```{r}
+
+VARselect(changes, lag.max=8, type="const")$selection
+var <- VAR(changes, p=1, type="const")
+summary(var)
+```
+we choose p=1
+
+#(e)
+```{r}
+resid.var <- resid(var)
+plot.ts(resid.var)
+acf(resid.var)
+pacf(resid.var)
+qqnorm(resid.var[,1])
+qqline(resid.var[,1])
+qqnorm(resid.var[,2])
+qqline(resid.var[,2])
+normality.test(var)
+
+```
+The residuals' time series plots and ACF do not indicate any anomalies that would violate the assumption of white noise. The auto-correlation of inventories at lag 4 may be significant by chance, and the residual PACF also does not suggest any anomalies violating the assumption of white noise.
+
+Overall, the model is similar to a white noise model. The QQ-norm plots show that the residuals are likely to be normally distributed, as most of the residuals conform to the theoretical QQ-norm line. The JB-normality test supports this observation, with a p-value of 0.7268 > 0.05, indicating a failure to reject the normality test at a 95% confidence interval.
+
+#(f)
+```{r}
+pred_var <- predict(var, n.ahead = 4, ci = 0.95)
+pred_var
+plot(pred_var)
+
+```
+The plots of the residuals for the time series do not indicate the presence of any anomalies that would violate the assumption of white noise.
+#(g)
+```{r}
+
+var_causalliy_V1 = causality(var, cause = "V1",boot = TRUE)
+var_causalliy_V1$Granger
+var_causalliy_V2 = causality(var, cause = "V2",boot = TRUE)
+var_causalliy_V1$Granger
+```
+Based on the Granger causality analysis, we reject the null hypothesis and conclude that Investment Granger-causes Inventories, consistent with the VAR(1) model's significant coefficient of 0.4753, with a p-value of 0.01449.
+Additionally, we reject the null hypothesis and conclude that Inventories Granger-cause Investment, consistent with the VAR(1) model's significant coefficient of 0.17088, with a p-value of 0.00268.
+
+
+#Q3
+
+#a
+
+$$
+E\left(X_{2 t}\right)=E\left(\phi Z_{1, t-2}+Z_{2 t}\right)
+$$
+
+$$
+=\phi E\left(Z_{1, t-2}\right)+E\left(Z_{2 t}\right)=0
+$$
+
+$$
+X_{2 t}=\phi X_{1, t-l}+Z_{2t} .
+$$
+$$
+\gamma_{X_{2 t}}(h)=E\left[X_{2 t} X_{2, t-h}\right]=E\left[\left(\phi Z_{1, t-2}+Z_{2 t}\right)\left(\phi Z_{1, t-h-2}+Z_{2, t-h}\right)\right]
+$$
+$=E\left[\phi^2 Z_{1, t-2} Z_{1, t-h-2}+\phi Z_{1, t-2} Z_{2, t-h}+\phi Z_{2 t} Z_{1, t-h-2}+Z_{2 t} Z_{2, t-h}\right]$
+If h=0
+$$
+\gamma_{X_{2 t}}(0)=E\left[\phi^2 Z_{1, t-2} Z_{1, t-2}+\phi Z_{1, t-2} Z_{2 t}+\phi Z_{2 t} Z_{1, t-2}+Z_{2 t} Z_{2 t}\right]
+$$
+$$
+=\phi^2 E\left[Z_{1, t-2}^2\right]+\phi E\left[Z_{1, t-2} Z_{2 t}\right]+\phi E\left[Z_{2 t} Z_{1, t-2}\right]+E\left[Z_{2 t}^2\right]=\phi^2 \sigma^2+0+0+\sigma^2=E\left(X_{2 t}^2\right)
+$$
+$h \neq 0$
+$$
+\begin{aligned}
+\gamma_{X_{2 t}}(h)= & \phi^2 E\left[Z_{1, t-2} Z_{1, t-h-2}\right]+\phi E\left[Z_{1, t-2} Z_{2, t-h}\right] +\phi E\left[Z_{2 t} Z_{1, t-h-2}\right]+E\left[Z_{2 t} Z_{2, t-h}\right]=0
+\end{aligned}
+$$
+$X_{2t}$ is a white noise 
+#b
+since $X_{1-t}$,$X_2t$ is white noisse, 
+$$
+x_{1, t+h}=\mathbb{E}[Z _t+n ]=0
+$$
+$$
+x_{2, t+h}=0
+$$
+#c
+h=1
+$$
+\begin{aligned}
+
+& X_{2, T+1}=5 \cdot X_{1,7+1-2}+Z_{2,7+1}=5 X_{1,7-1}+0=5 X_{1, T-1}
+\end{aligned}
+$$
+h=2
+$$
+x_{2,7+2}=5 x_{1, T+2-2}+Z_{2,7+2}=5 x_{1, T+0}=5 x_{1, T}
+$$
+
+h=3
+$$
+x_{2, T+3}=5 x_{1, T+3-2}+z_{2, T+3}=5 x_{1.7+1}+0=5 \cdot 0+0=0
+$$
+
+h=4
+$$
+X_{2, T+4}=5 X_{1, T+4 \cdot 2}+Z_{2, T+4}=5 X_{1, T+2}+0=5 \cdot 0+0=0
+$$
+#d
+
+```{r}
+set.seed(2)
+l <- 2
+T <- 100
+phi <- 5
+xx <- rnorm(T+l+4)
+x1 <- xx[(1+l):(T+l+4)]
+x2 <- phi*xx[1:(T+4)] + rnorm(T+4)
+x <- cbind(x1,x2)
+x_train = x[1:100, ] 
+var_x = VAR(x_train, p=2, type="none")
+pred_1 = rep(0, 4)
+pred_2 <- predict(var_x, n.ahead = 4, ci = 0.95)$fcst$x2[, 1]
+mse_1 = mean((x[101:104, 2]-pred_1)^2)
+mse_2 = mean((x[101:104, 2]-pred_2)^2)
+cbind(MSE_part_b = mse_1, MSE_part_c = mse_2)
+```
+
+The forecasting scenario in part (c), which uses the bivariate Xt, appears to produce significantly lower mean squared error (MSE) than the forecasting scenario in part (b). This suggests that although $X_{2t}$ is a white noise series, its dependence on $X_{1,t-2}$ can be leveraged to generate more accurate forecasts
+#Q4
+#(a)
+```{r}
+
+phi1 = matrix(c(.5,.1,.1,.6), ncol=2)
+sumphi = diag(2)
+phi1_power = phi1%*%phi1
+for(a in seq(2,50,2)){
+ sumphi = sumphi + phi1_power
+ phi1_power = phi1_power%*%phi1%*%phi1
+}
+print(sumphi)
+solve((diag(2)-phi1%*%phi1))
+```
+
+
+
+$$\begin{aligned} & \Rightarrow eq(1) . \\ & 6 Z^2\left(Z+\phi^2+\phi^4+\cdots+\phi^{50}\right) \\ & =6 Z^2\left(\begin{array}{cc}1.39736 & 0.24224 \\ 0.24224 . & 1.62960\end{array}\right)\end{aligned}$$
+$$
+\begin{aligned}
+& Eq(2) \\
+& 6 Z^2\left(I-\phi^2\right)-1 \\
+& =6 z^2\left(\begin{array}{ll}
+1.39736 & 0.24224 \\
+0.24224 . & 1.62960
+\end{array}\right)
+\end{aligned}
+$$
+They are same.
+
+#b
+
+$$
+\gamma_x(0)=6 Z^2\left(\left[\begin{array}{ll}
+1 & 0 \\
+0 & 1
+\end{array}\right]-\left[\begin{array}{ll}
+\phi_{11}^2+\phi_{12}{ }^2 & \phi_{11} \phi_{12}+\phi_{12} \phi_{22} \\
+\phi_{11} \phi_{22}+\phi_{12} \phi_{22} & \phi_{12}{ }^2+\phi_{22}{ }^2
+\end{array}\right)^{-1}\right.
+$$
+$$
+=6Z^2\left[\begin{array}{cc}
+1-\phi_{11}^2-\phi_{12}{ }^2 & -\phi_{11} \phi_{12}-\phi_2 \phi_{22} \\
+-\phi_{11} \phi_{12}-\phi_{12} \phi_{22} & 1-\phi_{12}{ }^2-\phi_{22}{ }^2
+\end{array}\right]^{-1}
+$$
+$$
+=\frac{6 z^2}{\phi_{11}^2-\phi_{12}{ }^4+2 \phi_{12}{ }^2-\phi_{11}{ }^2 \phi_{22}{ }^2+\phi_{22}{ }^2+2 \phi_{11} \phi_2^2 \phi_{22}-1}\left[\begin{array}{ll}
+\phi_{12}{ }^2+\phi_{22}{ }^2-1 & -\phi_{11} \phi_{12}-\phi_{12} \phi_{22} \\
+-\phi_{11} \phi_{12}-\phi_{12} \phi_{22} & \phi_{12}{ }^2+\phi_{12}{ }^2-1
+\end{array}\right]
+$$
+
+#c
+```{r}
+source("VAR-library.R")
+sigma <- 0.25*diag(2)
+phi_a <- matrix(c(.5,.1,.1,.6), ncol=2)
+set.seed(1)
+Tt <- 1000
+y <- VAR.sim(Tt, phi_a, Sigma=sigma)
+cov(t(y))
+0.25*solve((diag(2)-phi_a%*%phi_a))
+```
+

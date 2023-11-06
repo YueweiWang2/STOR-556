@@ -1,0 +1,175 @@
+---
+title: "Stor 556 hw 7"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+#Q1
+#a)
+```{r}
+library(forecast)
+# Generate x_t
+set.seed(1)
+phi1 = 2*(1/1.2)*cos(pi/8)
+phi2 = -1/1.22
+x = arima.sim(list(order = c(2,0,0), ar = c(phi1,phi2) ), n = 200)
+# Regression on cos() and sin()
+t = time(x)
+hr_1 = lm(x~1+cos(2*pi*20/200*t)+sin(2*pi*20/200*t))
+# Verify the equation for k=20
+a_0 = mean(x)
+a_20 = 2/200*sum(x*cos(2*pi*20/200*t))
+b_20 = 2/200*sum(x*sin(2*pi*20/200*t))
+rbind(equation=c(a_0, a_20, b_20), coef = summary(hr_1)$coef[,1])
+```
+The values of a0, a20,b20 are same when k = 20.
+
+#b
+```{r}
+a = rep(0, 99)
+b = rep(0, 99)
+for(i in 1:99){
+a[i] = 2/200*sum(x*cos(2*pi*i/200*t))
+b[i] = 2/200*sum(x*sin(2*pi*i/200*t))
+}
+a_100 = mean(x*cos(pi*t))
+# Verify equations
+rbind(Equation_3 = c(LHS = mean(x^2), RHS = a_0^2+0.5*sum(a^2+b^2)+a_100^2),Equation_4 = c(LHS = mean((x-mean(x))^2), RHS = 0.5*sum(a^2+b^2)+a_100^2))
+```
+The answers are the same
+
+#c
+```{r}
+# The raw spectrum
+spec.x = spec.pgram(x,log='no',taper=0,pad=0,fast=FALSE,demean=TRUE,detrend=FALSE)
+I_wk = spec.x$spec
+mean((x-mean(x))^2)
+2/200*sum(I_wk[1:99])+1/200*I_wk[100]
+```
+answers are the same
+#d
+```{r}
+k_max = which.max(I_wk)
+k_max
+spec.pgram(x,log='no',taper=0,pad=0,fast=FALSE,demean=TRUE,detrend=FALSE)
+abline(v=spec.x$freq[15], lty = 2, lwd = 2, col = "red")
+legend(0.1, 60, legend = c("w_15 = 0.075"), col = c("red"), box.lty=0)
+
+```
+#e
+
+```{r}
+plot.ts(x)
+curve(a_0+a[15]*cos(2*pi*15/200*x)+b[15]*sin(2*pi*20/200*x), add = T, col = "red")
+
+0.5*(a[15]^2 + b[15]^2)/mean((x-mean(x))^2)
+```
+22.39564% of the variability is explained according to eq.(4)
+
+#Q2
+#a
+```{r}
+library(haven)
+wave <- read.delim("wave.txt", header=FALSE)
+plot(ts(wave, frequency=10))
+spec.pgram(wave,log='no',taper=0,pad=0,fast=FALSE,demean=TRUE,detrend=FALSE)
+
+```
+```{r}
+spec.x = spec.pgram(wave,log='no',taper=0,pad=0,fast=FALSE,demean=TRUE,detrend=FALSE, spans=12)
+```
+
+#b
+```{r}
+freq = spec.x$freq[which.max(spec.x$spec)]
+freq
+
+```
+```{r}
+period = 0.1/freq
+period
+```
+
+The period is 0.72s
+
+#c
+$\ln \left(\mathrm{I}\left(w_k\right)\right)=\ln \left(a w^{-5} e^{-b w^{-4}}\right)=\ln (a)-5 \ln (w)-b w^{-4}$
+```{r}
+a = 3.5e5
+b = 0.43
+k = 1:(396/2)
+w = 2*pi*k/396
+PMspectrum = a*w^(-5)*exp(-b*w^(-4))
+spec.pgram(wave,log='no',taper=0,pad=0,fast=FALSE,demean=TRUE,
+detrend=FALSE, spans=12, ylim=c(0, 400000))
+lines(w/2/pi,PMspectrum, col="red")
+legend(0.35, 400000, legend=c("Spectrum from a", "Pierson-Moskowitz"),
+col=c("black", "red"),lty=c(1,1), cex=0.8)
+
+```
+a = 350000, b = 0.43
+
+#Q3
+```{r}
+library(signal)
+n = 5
+low = 0.1
+high = 0.5
+bf = butter(n,c(low,high))
+w = seq(0,pi,0.01)
+numerator = 0
+denominator = 0
+for (j in 0:(2*n)){
+j
+numerator = numerator + bf$b[j+1]*exp(-j*w*1i)
+denominator = denominator + bf$a[j+1]*exp(-j*w*1i)
+}
+h_w = Mod(numerator)^2/Mod(denominator)^2
+plot(w, h_w, type="l")
+abline(v=low*pi, col="red")
+abline(v=high*pi, col="red")
+```
+The plot above demonstrates that h(w) approaches 1 for frequencies falling within the range of 0.1π to 0.5π. Such a filter is known as a band-pass filter because it permits frequencies within a specific range to pass while blocking those outside of the range.
+#Q4
+#a
+```{r}
+set.seed(1)
+p4sim = arima.sim(list(order = c(1,0,0), ar = 0.5), n = 200)
+plot(p4sim)
+
+```
+#b
+```{r}
+I = spec.pgram(p4sim,log='no',taper=0,pad=0,fast=FALSE,demean=TRUE,detrend=FALSE)
+phi = seq(-1, 1, 0.01)
+losses = 0
+for (j in 1:100){
+w_j = 2*pi*j/200
+f_w = Mod(1-phi*exp(-1i*w_j))^(-2)/(2*pi)
+loss = log(f_w)+I$spec[j]/(2*pi*f_w)
+losses = losses + loss
+}
+plot(phi,losses, type='l')
+```
+#c
+```{r}
+f = function (phi){
+losses = 0
+for (j in 1:100){
+w_j = 2*pi*j/200
+f_w = Mod(1-phi*exp(-1i*w_j))^(-2)/(2*pi)
+loss = log(f_w)+I$spec[j]/(2*pi*f_w)
+losses = losses + loss
+}
+losses
+}
+phi_min <- optimize(f, c(-1, 1), tol = 1e-5)
+phi_min
+```
+
+ϕ = 0.4894 is close to 0.5
+
+
+
